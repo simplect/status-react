@@ -65,11 +65,13 @@
 
 (reg-fx
   :get-transactions
-  (fn [{:keys [network account-id success-event error-event]}]
+  (fn [{:keys [web3 network account-id token-addresses success-event error-event]}]
     (transactions/get-transactions network
                                    account-id
                                    #(re-frame/dispatch [success-event %])
-                                   #(re-frame/dispatch [error-event %]))))
+                                   #(re-frame/dispatch [error-event %]))
+    (erc20/get-token-transactions web3 network token-addresses :inbound account-id  #(re-frame/dispatch [success-event %]))
+    (erc20/get-token-transactions web3 network token-addresses :outbound account-id  #(re-frame/dispatch [success-event %]))))
 
 ;; TODO(oskarth): At some point we want to get list of relevant assets to get prices for
 (reg-fx
@@ -120,21 +122,37 @@
 
 (handlers/register-handler-fx
   :update-transactions
-  (fn [{{:keys [network network-status] :as db} :db} _]
+  (fn [{{:keys [network network-status web3] :as db} :db} _]
     (when (not= network-status :offline)
+      (let [chain           (ethereum/network->chain-keyword network)
+            all-tokens      (tokens/tokens-for chain)
+            token-addresses (map :address all-tokens)]
       {:get-transactions {:account-id    (get-in db [:account/account :address])
-                          :network       network
+                          :token-addresses token-addresses
+                          :network         network
+                          :web3            web3
                           :success-event :update-transactions-success
                           :error-event   :update-transactions-fail}
        :db               (-> db
                              (clear-error-message :transactions-update)
-                             (assoc-in [:wallet :transactions-loading?] true))})))
+                             (assoc-in [:wallet :transactions-loading?] true))}))))
+
+(defn combine-entries [transaction token-transfer]
+  (if (= :ETH (:symbol transaction))
+    (merge transaction
+           (select-keys token-transfer [:symbol :from :to :value :type]))
+    (merge transaction (select-keys [:confirmations] token-transfer))))
+
+(defn dedupe-transactions [tx1 tx2]
+  (cond (and (not (:transfer tx1)) (:transfer tx2)) (combine-entries tx1 tx2)
+        (and (not (:transfer tx2)) (:transfer tx1)) (combine-entries tx2 tx1)
+        :else tx2))
 
 (handlers/register-handler-db
   :update-transactions-success
   (fn [db [_ transactions]]
     (-> db
-        (update-in [:wallet :transactions] merge transactions)
+        (update-in [:wallet :transactions] #(merge-with dedupe-transactions % transactions))
         (assoc-in [:wallet :transactions-loading?] false))))
 
 (handlers/register-handler-db
