@@ -100,7 +100,7 @@
          (let [event    (get-coeffect context :event)
                offline? (or (= :offline (:network-status new-db))
                             (= :offline (:sync-state new-db)))
-               anon-id  (ethereum/sha3 current-account-id)]
+               anon-id  (:device-UUID new-db)]
            (doseq [{:keys [label properties]}
                    (mixpanel/matching-events new-db event mixpanel/event-by-trigger)]
              (mixpanel/track anon-id label properties offline?))
