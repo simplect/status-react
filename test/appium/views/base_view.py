@@ -25,7 +25,7 @@ class BackButton(BaseButton):
 class AllowButton(BaseButton):
     def __init__(self, driver):
         super(AllowButton, self).__init__(driver)
-        self.locator = self.Locator.xpath_selector("//*[@text='Allow']")
+        self.locator = self.Locator.xpath_selector("//*[@text='Allow' or @text='ALLOW']")
 
     def click(self):
         try:
