@@ -36,8 +36,9 @@
                         :sym-key-id sym-key-id
                         :topic      (transport.utils/get-topic chat-id)
                         :chat-id    chat-id}
-       :data-store/tx  [(transport-store/save-transport-tx {:chat-id chat-id
-                                                            :chat    (-> (get-in db [:transport/chats chat-id])
-                                                                         (assoc :sym-key-id sym-key-id)
-                                                                         ;;TODO (yenda) remove once go implements persistence
-                                                                         (assoc :sym-key sym-key))})]}))))
+       :data-store/tx  [(transport-store/save-transport-tx
+                         {:chat-id chat-id
+                          :chat    (-> (get-in db [:transport/chats chat-id])
+                                       (assoc :sym-key-id sym-key-id)
+                                       ;;TODO (yenda) remove once go implements persistence
+                                       (assoc :sym-key sym-key))})]}))))
